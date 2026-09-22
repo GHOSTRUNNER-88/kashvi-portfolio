@@ -402,7 +402,7 @@ export default function Portfolio() {
               <i /> Open to internships &amp; freelance
             </p>
            
-            <p className="place">kashvijain2910@mail.com</p>
+            <p className="place">kashvijain2910@gmail.com</p>
           </footer>
 
           <div className="progress" aria-hidden="true">
