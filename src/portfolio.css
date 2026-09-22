@@ -1,0 +1,817 @@
+:root {
+  /* Overwritten at runtime from public/frames/manifest.json so the page and
+     the baked frames can never drift apart. */
+  --backdrop: #c71e17;
+  --ink: #fbf1e6;
+  --ink-soft: rgba(251, 241, 230, 0.62);
+  --ink-faint: rgba(251, 241, 230, 0.4);
+  --gold: #e9c393;
+  --edge: rgba(251, 241, 230, 0.16);
+  --gutter: clamp(20px, 3.6vw, 60px);
+  /* Her drawn box on screen: left edge and width. The renderer overwrites both
+     on .stage whenever she moves or the window resizes, so the copy columns are
+     always cut to where she actually is. */
+  --lane-x: 31vw;
+  --lane: 38vh;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: 'Poppins', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Proximity, not mandatory: it settles on a section without ever refusing to
+     let you stop between them. */
+  scroll-snap-type: y proximity;
+}
+
+html,
+body {
+  background: var(--backdrop);
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ----------------------------------------------------------------- stage */
+
+/* One screen of scroll per panel; she is sticky across all of them. */
+.shell {
+  position: relative;
+  height: calc(var(--panels) * 100svh);
+}
+
+.snaps {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.snaps > div {
+  height: 100svh;
+  scroll-snap-align: start;
+}
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  min-height: 620px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* No perspective, no rotateX/rotateY, no transform of any kind: the page and
+   her body stay dead still and only the drawn head turns. */
+.character {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+}
+
+/* Darkens the flanks she does not occupy, so the copy has contrast without
+   dimming the portrait itself. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(46, 8, 5, 0.84) 0%,
+      rgba(46, 8, 5, 0.38) 22%,
+      rgba(46, 8, 5, 0) 40%,
+      rgba(46, 8, 5, 0) 60%,
+      rgba(46, 8, 5, 0.38) 78%,
+      rgba(46, 8, 5, 0.84) 100%
+    ),
+    linear-gradient(to top, rgba(38, 6, 4, 0.55) 0%, rgba(38, 6, 4, 0) 30%),
+    linear-gradient(to bottom, rgba(38, 6, 4, 0.42) 0%, rgba(38, 6, 4, 0) 22%);
+}
+
+/* The noise tiles, so this only ever needs to be the size of the stage;
+   oversizing it made the compositor push four viewports of texture. */
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.055;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.frame {
+  position: relative;
+  z-index: 3;
+  height: 100%;
+  padding: clamp(18px, 2.6vw, 34px) var(--gutter) clamp(18px, 2.4vw, 30px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(14px, 2vh, 30px);
+}
+
+/* --------------------------------------------------------------- curtain */
+
+.curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #250604;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  clip-path: inset(0 0 0% 0);
+}
+
+.curtain__mark {
+  font-size: clamp(26px, 4vw, 48px);
+  font-weight: 200;
+  letter-spacing: -0.03em;
+}
+
+.curtain__role {
+  font-size: 10px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.curtain__bar {
+  width: min(220px, 40vw);
+  height: 1px;
+  margin-top: 12px;
+  background: var(--edge);
+  overflow: hidden;
+}
+
+.curtain__bar i {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* ---------------------------------------------------------------- cursor */
+
+.cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+@media (hover: none) {
+  .cursor {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------- nav */
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: clamp(12px, 1.6vw, 20px);
+  border-bottom: 1px solid var(--edge);
+}
+
+.wordmark {
+  font-size: clamp(16px, 1.4vw, 20px);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.wordmark span {
+  color: var(--gold);
+  font-size: 0.5em;
+  vertical-align: super;
+  margin-left: 0.18em;
+}
+
+.top ul {
+  position: relative;
+  display: flex;
+  gap: clamp(16px, 2.2vw, 38px);
+  list-style: none;
+  padding: 0;
+}
+
+/* Slides between items instead of each one drawing its own underline. */
+.marker {
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 1px;
+  width: 0;
+  background: var(--gold);
+  opacity: 0;
+}
+
+.top a:not(.wordmark) {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  transition: color 0.4s;
+}
+
+.top a:not(.wordmark):hover,
+.top a.is-on {
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------- columns */
+
+.columns {
+  display: grid;
+  grid-template-columns:
+    max(0px, calc(var(--lane-x) - var(--gutter)))
+    var(--lane)
+    minmax(0, 1fr);
+  min-height: 0;
+}
+
+/* All three live on one row. Without this the auto-placed lane takes column 1
+   and pushes the explicitly-placed aside into a second implicit row, which
+   halves the height the panel gets to centre itself in. */
+.columns > * {
+  grid-row: 1;
+}
+
+.lane {
+  grid-column: 2;
+}
+
+/* The copy takes whichever flank she left. Placement flips instantly while the
+   outgoing panel is still fading, so the grid never reflows under live text. */
+.panels {
+  grid-column: 1;
+  padding-right: clamp(16px, 2.4vw, 46px);
+}
+
+.columns.is-left .panels {
+  grid-column: 3;
+  padding-right: 0;
+  padding-left: clamp(16px, 2.4vw, 46px);
+  text-align: right;
+}
+
+.columns.is-left .eyebrow,
+.columns.is-left .actions {
+  justify-content: flex-end;
+}
+
+.columns.is-left :is(.head, .lede, .note, .entries, .contact) {
+  margin-left: auto;
+}
+
+.columns.is-left .entries h3,
+.columns.is-left .contact li {
+  flex-direction: row-reverse;
+}
+
+.panels {
+  position: relative;
+}
+
+.panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  isolation: isolate; /* keeps the hollow numeral behind its own panel only */
+  /* Its box is fixed by `inset: 0`, so its contents can never affect the
+     outer layout — which keeps the side switch from relaying out all six. */
+  contain: layout;
+  /* Resting state only. Anime.js (src/animations.js) owns every transition in
+     and out, so nothing here may animate the same properties. */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: clamp(14px, 2.2vh, 26px);
+}
+
+.eyebrow i {
+  width: clamp(20px, 3vw, 44px);
+  height: 1px;
+  background: var(--gold);
+  flex: none;
+  transform-origin: left;
+}
+
+/* The section number, set huge and hollow behind the copy. */
+.numeral {
+  position: absolute;
+  top: 50%;
+  margin-top: -0.52em;
+  right: 0;
+  font-size: clamp(150px, 46cqw, 300px);
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(251, 241, 230, 0.13);
+  pointer-events: none;
+  user-select: none;
+  z-index: -1;
+  opacity: 0;
+}
+
+.columns.is-left .numeral {
+  right: auto;
+  left: 0;
+}
+
+/* The headline is sized against its own column, not the viewport: the lane
+   down the middle is fixed by the hero height, so on an ultrawide the columns
+   grow while `vw` does not track them. */
+.panels {
+  container-type: inline-size;
+}
+
+.head {
+  max-width: 13ch;
+  font-size: clamp(30px, 14cqw, 64px);
+  font-weight: 200;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  margin-bottom: clamp(16px, 2.4vh, 28px);
+}
+
+.head span {
+  display: block;
+  overflow: hidden; /* the mask the lines rise out of */
+}
+
+.head b {
+  display: block;
+  font-weight: inherit;
+}
+
+.head em {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--gold);
+}
+
+.lede,
+.note {
+  max-width: 38ch;
+  font-size: clamp(13px, 0.95vw, 16px);
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+.lede {
+  margin-bottom: clamp(14px, 2vh, 22px);
+}
+
+.note {
+  color: var(--ink-faint);
+  margin-bottom: clamp(20px, 3vh, 32px);
+}
+
+/* --------------------------------------------------------------- entries */
+
+.entries {
+  list-style: none;
+  padding: 0;
+  max-width: 44ch;
+  border-top: 1px solid var(--edge);
+}
+
+.entries li {
+  padding: clamp(11px, 1.8vh, 18px) 0;
+  border-bottom: 1px solid var(--edge);
+}
+
+.entries h3 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: clamp(14px, 1.15vw, 19px);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  margin-bottom: 5px;
+}
+
+.entries h3 span {
+  flex: none;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.entries p {
+  font-size: clamp(12px, 0.88vw, 14px);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+/* ------------------------------------------------------------ toolkit */
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  max-width: 42ch;
+  margin-bottom: clamp(20px, 3vh, 30px);
+}
+
+.tags li {
+  padding: 7px 14px;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.contact {
+  list-style: none;
+  padding: 0;
+  max-width: 42ch;
+  border-top: 1px solid var(--edge);
+}
+
+.contact li {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: clamp(8px, 1.3vh, 13px) 0;
+  border-bottom: 1px solid var(--edge);
+  font-size: clamp(12px, 0.92vw, 15px);
+}
+
+.contact li span {
+  flex: none;
+  width: 9ch;
+  white-space: nowrap;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.contact li em {
+  font-style: normal;
+  color: var(--ink-soft);
+}
+
+.contact li a {
+  background: linear-gradient(var(--gold), var(--gold)) 0 100% / 0 1px no-repeat;
+  transition: background-size 0.5s var(--ease), color 0.4s;
+}
+
+.contact li a:hover {
+  background-size: 100% 1px;
+  color: var(--gold);
+}
+
+/* --------------------------------------------------------------- actions */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(10px, 1vw, 16px);
+}
+
+.cta,
+.ghost {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  white-space: nowrap;
+  padding: 14px 24px;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--ink);
+  color: #46100a;
+  font-weight: 500;
+  transition: background 0.35s, gap 0.35s var(--ease);
+}
+
+.cta:hover {
+  background: var(--gold);
+  gap: 17px;
+}
+
+.cta svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ghost {
+  border: 1px solid var(--edge);
+  color: var(--ink-soft);
+  transition: border-color 0.35s, color 0.35s;
+}
+
+.ghost:hover {
+  border-color: var(--gold);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- asides */
+
+.asides {
+  grid-column: 3;
+  position: relative;
+  padding-left: clamp(16px, 2.4vw, 46px);
+}
+
+.columns.is-left .asides {
+  grid-column: 1;
+  padding-left: 0;
+  padding-right: clamp(16px, 2.4vw, 46px);
+}
+
+.aside {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: right;
+  /* Resting state only; anime.js owns the transitions. */
+  opacity: 0;
+  visibility: hidden;
+}
+
+.aside dl {
+  margin: clamp(12px, 1.8vh, 20px) 0 0;
+  border-top: 1px solid var(--edge);
+}
+
+.aside dl div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: clamp(8px, 1.3vh, 14px) 0;
+  border-bottom: 1px solid var(--edge);
+}
+
+.aside dt {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.aside dd {
+  margin: 0;
+  font-size: clamp(12px, 0.9vw, 15px);
+  color: var(--ink-soft);
+}
+
+.aside .tags {
+  justify-content: flex-end;
+  margin: clamp(12px, 1.8vh, 20px) 0 0;
+  max-width: none;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ------------------------------------------------------------------ foot */
+
+.bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: clamp(12px, 1.6vw, 18px);
+  border-top: 1px solid var(--edge);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 0 rgba(233, 195, 147, 0.55);
+  animation: pulse 2.6s ease-out infinite;
+  flex: none;
+}
+
+.hint {
+  font-style: italic;
+  font-weight: 300;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  transition: opacity 0.6s var(--ease);
+}
+
+.hint.is-gone {
+  opacity: 0;
+}
+
+@keyframes pulse {
+  70% {
+    box-shadow: 0 0 0 9px rgba(233, 195, 147, 0);
+  }
+}
+
+.progress {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: 0;
+  height: 1px;
+  background: var(--edge);
+}
+
+.progress i {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+
+/* -------------------------------------------------------------- entrance */
+
+/* Resting state; the intro timeline brings these in once the frames land. */
+.top,
+.bottom {
+  opacity: 0;
+}
+
+/* ------------------------------------------------------------ responsive */
+
+/* Not enough room to flank her on both sides: centre sections give up their
+   aside and hand the whole width back to the copy. */
+@media (max-width: 1180px) {
+  .asides {
+    display: none;
+  }
+
+  .columns {
+    grid-template-columns:
+      max(0px, calc(var(--lane-x) - var(--gutter)))
+      var(--lane)
+      minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  /* Deeper panels reach further up the screen on a phone, so the copy needs
+     cover most of the way to her chin. */
+  .scrim {
+    background:
+      linear-gradient(to top, rgba(34, 5, 3, 0.96) 46%, rgba(34, 5, 3, 0) 78%),
+      linear-gradient(to bottom, rgba(38, 6, 4, 0.5), rgba(38, 6, 4, 0) 26%);
+  }
+
+  .columns,
+  .columns.is-left {
+    display: block;
+    position: relative;
+  }
+
+  .columns.is-left .panels {
+    grid-column: auto;
+    padding: 0;
+    text-align: left;
+  }
+
+  .columns.is-left .eyebrow,
+  .columns.is-left .actions {
+    justify-content: flex-start;
+  }
+
+  .columns.is-left .entries h3,
+  .columns.is-left .contact li {
+    flex-direction: row;
+  }
+
+  .panels {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+  }
+
+  .panel {
+    justify-content: flex-end;
+  }
+
+  .head {
+    max-width: 11ch;
+    font-size: clamp(30px, 11vw, 52px);
+  }
+
+  .lede,
+  .note,
+  .entries,
+  .tags,
+  .contact {
+    max-width: none;
+  }
+
+  /* Deep panels would run under her on a phone; let them scroll inside. */
+  .panel {
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .top ul,
+  .hint,
+  .place {
+    display: none;
+  }
+
+  .bottom {
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
