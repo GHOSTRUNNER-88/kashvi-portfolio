@@ -248,6 +248,37 @@ export function raiseCurtain(curtain, root) {
     )
 }
 
+/**
+ * Grades the page to a section's colour.
+ *
+ * The red wall is photographed into the frames and cannot be keyed out — her
+ * lips and warm skin sit too close to it — so the section colour lands on the
+ * scrim over the flanks, on the accents, and as a light wash over the whole
+ * stage, rather than replacing the backdrop she stands against.
+ */
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
+
+// Flat numbers, not arrays: anime.js tweens numeric properties, and handing it
+// an array is what made it throw `str.match is not a function`.
+const grade = { r: 58, g: 10, b: 6, gr: 233, gg: 195, gb: 147 }
+
+export function tintTo(el, tint, gold) {
+  const [r, g, b] = tint.split(' ').map(Number)
+  const [gr, gg, gb] = hex(gold)
+  const to = { r, g, b, gr, gg, gb }
+  const write = () => {
+    const n = (v) => Math.round(v)
+    el.style.setProperty('--tint-rgb', `${n(grade.r)} ${n(grade.g)} ${n(grade.b)}`)
+    el.style.setProperty('--gold', `rgb(${n(grade.gr)} ${n(grade.gg)} ${n(grade.gb)})`)
+  }
+  if (reducedMotion()) {
+    Object.assign(grade, to)
+    write()
+    return null
+  }
+  return animate(grade, { ...to, duration: 620, ease: 'outQuad', onUpdate: write })
+}
+
 /** Fills the curtain's hairline as the frames decode. */
 export function curtainProgress(bar, value) {
   animate(bar, { scaleX: value, duration: 420, ease: 'outQuad' })

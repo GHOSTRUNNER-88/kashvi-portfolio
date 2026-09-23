@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { createScope } from 'animejs'
 
 import CharacterCanvas from './CharacterCanvas.jsx'
+import ContactModal from './components/ContactModal.jsx'
 import {
   curtainProgress,
   enter,
@@ -12,95 +14,16 @@ import {
   moveMarker,
   raiseCurtain,
   splitHeadlines,
+  tintTo,
   trailingCursor,
 } from './animations.js'
-
-/** One screen of scroll each. She stays put; only this copy changes. */
-const PANELS = [
-  {
-    id: 'intro',
-    nav: 'Intro',
-    side: 'center',
-    eyebrow: 'Web developer from Kathmandu',
-    head: ['Kashvi', 'Jain.'],
-    lede: 'Aspiring software developer building responsive web applications with React, Node.js and Spring Boot and currently reading B.Tech CSE at KIIT University.',
-    actions: true,
-    aside: {
-      label: 'At a glance',
-      rows: [
-        ['Based', 'New Road, Kathmandu'],
-        ['Studying', 'B.Tech CSE · KIIT'],
-        ['Stack', 'MERN · Spring Boot'],
-        ['Since', '2024'],
-      ],
-    },
-  },
-  {
-    id: 'about',
-    nav: 'About',
-    side: 'right',
-    eyebrow: '01 About',
-    head: ['Always', 'learning.'],
-    lede: 'A strong interest in web development and modern technologies. Skilled in building responsive web applications using HTML, CSS, JavaScript and React, with backend experience in Node.js and Spring Boot.',
-    note: 'Happiest making real-world projects, picking up new tools, and sharpening problem-solving along the way.',
-  },
-  {
-    id: 'work',
-    nav: 'Work',
-    side: 'left',
-    eyebrow: '02 Selected work',
-    head: ['Two things', 'I built.'],
-    items: [
-      ['ResumeLab', 'MERN · AI', 'An AI-powered resume builder that turns a rough history into a structured, readable CV.'],
-      ['Expozia', 'MERN · AI', 'An AI-powered plagiarism detection platform for checking written work at scale.'],
-    ],
-  },
-  {
-    id: 'experience',
-    nav: 'Experience',
-    side: 'right',
-    eyebrow: '03 Experience',
-    head: ['Independent', 'practice.'],
-    items: [
-      ['Independent project development', '2025', 'Full-stack development of ResumeLab and Expozia on the MERN stack, end to end.'],
-      ['Software development & skill enhancement', '2026', 'DSA practice in C across coding platforms. React on the front end, Node.js and Spring Boot behind it, applying theory to real scenarios.'],
-    ],
-  },
-  {
-    id: 'education',
-    nav: 'Education',
-    side: 'left',
-    eyebrow: '04 Education',
-    head: ['KIIT', 'University.'],
-    items: [
-      ['KIIT University', '2024 — 2028', 'B.Tech in Engineering — Computer Science.'],
-      ['DAV Sushil Kedia Vishwa Bharati', '2022 — 2024', 'Senior Secondary, Class XII — Science.'],
-      ['DAV Sushil Kedia Vishwa Bharati', 'to 2022', 'Secondary, Class X.'],
-    ],
-  },
-  {
-    id: 'contact',
-    nav: 'Contact',
-    side: 'center',
-    eyebrow: '05 Contact',
-    head: ['Let’s build', 'something.'],
-    contact: [
-      ['Email', 'kashvijain2910@gmail.com', 'mailto:kashvijain2910@gmail.com'],
-      ['Phone', '+91 90381 05437', 'tel:+919038105437'],
-      ['Phone', '+977 986 290 5165', 'tel:+9779862905165'],
-      ['Location', 'New Road, Kathmandu', null],
-    ],
-    aside: {
-      label: 'Toolkit',
-      tags: ['HTML / CSS / JS', 'React', 'Node.js', 'Express', 'MongoDB',
-             'Spring Boot', 'C & DSA', 'Microsoft Office'],
-    },
-  },
-]
+import { usePortfolioData } from './context/DataContext.jsx'
 
 export default function Portfolio() {
+  const { profile, projects, experience, education, skills } = usePortfolioData()
   const [ready, setReady] = useState(false)
   const [active, setActive] = useState(0)
+  const [contactModalOpen, setContactModalOpen] = useState(false)
   const onReady = useCallback(() => setReady(true), [])
   const root = useRef(null)
   const curtain = useRef(null)
@@ -112,11 +35,88 @@ export default function Portfolio() {
     if (bar) curtainProgress(bar, v)
   }, [])
 
-  // One screen of scroll per panel. Rounding switches at the halfway point,
-  // so a panel is fully in place while its screen is the one you are on.
+  // Construct dynamic PANELS from live data context
+  const PANELS = useMemo(() => {
+    const nameParts = (profile.name || 'Kashvi Jain').trim().split(' ')
+    const firstName = nameParts[0] || 'Kashvi'
+    const lastName = nameParts.slice(1).join(' ') || 'Jain'
+
+    return [
+      {
+        id: 'intro',
+        nav: 'Intro',
+        side: 'center',
+        tint: '58 10 6',
+        gold: '#e9c393',
+        eyebrow: `${profile.role || 'Web developer'} from ${profile.city?.split(',')[0] || 'Kathmandu'}`,
+        head: [firstName, `${lastName}.`],
+        lede: profile.intro,
+        actions: true,
+        aside: { label: 'At a glance', rows: profile.glance || [] },
+      },
+      {
+        id: 'about',
+        nav: 'About',
+        side: 'right',
+        tint: '44 14 48',
+        gold: '#e6b6d2',
+        eyebrow: '01 About',
+        head: ['Always', 'learning.'],
+        lede: profile.about,
+        note: profile.aboutNote,
+      },
+      {
+        id: 'work',
+        nav: 'Work',
+        side: 'left',
+        tint: '10 42 46',
+        gold: '#9ee0dc',
+        eyebrow: '02 Selected work',
+        head: [projects.length > 0 ? `${projects.length} things` : 'Things', 'I built.'],
+        items: projects,
+        to: '/work',
+      },
+      {
+        id: 'experience',
+        nav: 'Experience',
+        side: 'right',
+        tint: '54 30 8',
+        gold: '#f0c98a',
+        eyebrow: '03 Experience',
+        head: ['Independent', 'practice.'],
+        items: experience,
+        to: '/experience',
+      },
+      {
+        id: 'education',
+        nav: 'Education',
+        side: 'left',
+        tint: '14 30 56',
+        gold: '#a9c8f0',
+        eyebrow: '04 Education',
+        head: [education[0]?.title?.split(' ')[0] || 'KIIT', (education[0]?.title?.split(' ').slice(1).join(' ') || 'University') + '.'],
+        items: education,
+      },
+      {
+        id: 'contact',
+        nav: 'Contact',
+        side: 'center',
+        tint: '52 10 22',
+        gold: '#f0aeb4',
+        eyebrow: '05 Contact',
+        head: ['Let’s build', 'something.'],
+        contact: [
+          ['Email', profile.email, `mailto:${profile.email}`],
+          ...(profile.phones || []).map((n) => ['Phone', n, `tel:${n.replace(/\s/g, '')}`]),
+          ['Location', profile.city, null],
+        ],
+        aside: { label: 'Toolkit', tags: skills },
+      },
+    ]
+  }, [profile, projects, experience, education, skills])
+
+  // One screen of scroll per panel.
   useEffect(() => {
-    // Coalesced into one read per frame: scroll fires far more often than the
-    // browser paints, and each one would otherwise measure layout.
     let queued = 0
     const read = () => {
       queued = 0
@@ -138,10 +138,9 @@ export default function Portfolio() {
       window.removeEventListener('scroll', schedule)
       window.removeEventListener('resize', schedule)
     }
-  }, [])
+  }, [PANELS.length])
 
-  // Anime.js owns every panel transition. createScope keeps the split DOM, the
-  // scroll observer and the pointer handlers tied to this component's lifetime.
+  // Anime.js setup
   useEffect(() => {
     const scope = createScope({ root }).add(() => {
       const el = root.current
@@ -160,16 +159,14 @@ export default function Portfolio() {
       }
     })
     return () => scope.revert()
-  }, [])
+  }, [PANELS])
 
-  // Nothing animates until the frames land, so no copy flashes over a blank
-  // canvas; after that every change of panel is a handoff.
+  // Panel transition handoffs
   useEffect(() => {
     if (!ready || !root.current) return
     if (shown.current === active) return
     const scope = root.current
     if (shown.current < 0 && curtain.current) raiseCurtain(curtain.current, scope)
-    // Panels and asides are paired by section: both hand off together.
     const going = scope.querySelector(`.panel[data-i="${shown.current}"]`)
     const coming = scope.querySelector(`.panel[data-i="${active}"]`)
     const goingAside = scope.querySelector(`.aside[data-i="${shown.current}"]`)
@@ -187,7 +184,7 @@ export default function Portfolio() {
     shown.current = active
   }, [ready, active])
 
-  // Nav item geometry, measured only when the layout can actually change.
+  // Nav item geometry
   const navBoxes = useRef([])
   useEffect(() => {
     const ul = navList.current
@@ -202,24 +199,26 @@ export default function Portfolio() {
     measure()
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [active])
 
   useEffect(() => {
     const ul = navList.current
     if (ul) moveMarker(ul.querySelector('.marker'), navBoxes.current[active - 1])
   }, [active])
 
+  // Background tint per section
+  useEffect(() => {
+    const currentSection = PANELS[active] || PANELS[0]
+    if (currentSection) {
+      tintTo(document.documentElement, currentSection.tint, currentSection.gold)
+    }
+  }, [active, PANELS])
+
   const goTo = (i) => (e) => {
     e.preventDefault()
     window.scrollTo({ top: i * window.innerHeight, behavior: 'smooth' })
   }
 
-  /**
-   * Built once. Nothing in a panel depends on which section is current -- the
-   * handoff is done imperatively by anime.js and by `aria-hidden` below -- so
-   * scrolling never reconciles six sections' worth of DOM.
-   */
   const panels = useMemo(
     () =>
       PANELS.map((p, i) => (
@@ -260,16 +259,34 @@ export default function Portfolio() {
           {p.note && <p className="note">{p.note}</p>}
 
           {p.items && (
-            <ul className="entries">
-              {p.items.map(([title, meta, body]) => (
-                <li key={title + meta}>
-                  <h3>
-                    {title}
-                    <span>{meta}</span>
-                  </h3>
-                  <p>{body}</p>
-                </li>
-              ))}
+            <ul className={`entries${p.to ? ' entries--links' : ''}`}>
+              {p.items.map((item) => {
+                const row = (
+                  <>
+                    <h3>
+                      {item.title}
+                      <span>{item.meta || item.year}</span>
+                    </h3>
+                    <p>{item.summary}</p>
+                  </>
+                )
+                return (
+                  <li key={item.slug ?? item.title + (item.meta || '')}>
+                    {p.to && item.slug ? (
+                      <Link to={`${p.to}/${item.slug}`}>
+                        {row}
+                        <i className="entries__go" aria-hidden="true">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M4 12h15M13 6l6 6-6 6" />
+                          </svg>
+                        </i>
+                      </Link>
+                    ) : (
+                      row
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
 
@@ -292,19 +309,47 @@ export default function Portfolio() {
                   <path d="M4 12h15M13 6l6 6-6 6" />
                 </svg>
               </a>
-              <a className="ghost" href="mailto:kashvijain2910@gmail.com">
-                Get in touch
-              </a>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setContactModalOpen(true)}
+                style={{
+                  background: 'none',
+                  border: '1px solid var(--edge)',
+                  color: 'inherit',
+                  font: 'inherit',
+                  cursor: 'pointer',
+                }}
+              >
+                Send a message
+              </button>
+            </div>
+          )}
+
+          {p.id === 'contact' && (
+            <div style={{ marginTop: '24px' }}>
+              <button
+                type="button"
+                className="cta"
+                onClick={() => setContactModalOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  border: 'none',
+                  font: 'inherit',
+                }}
+              >
+                ✉️ Send direct message
+              </button>
             </div>
           )}
         </article>
       )),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [PANELS],
   )
 
-  /* Whatever flank she is not standing on. Only the centred sections leave
-     one, and each fills it with its own facts. */
   const asides = useMemo(
     () =>
       PANELS.map((p, i) =>
@@ -313,8 +358,8 @@ export default function Portfolio() {
             <p className="label">{p.aside.label}</p>
             {p.aside.rows && (
               <dl>
-                {p.aside.rows.map(([term, detail]) => (
-                  <div key={term}>
+                {p.aside.rows.map(([term, detail], rIdx) => (
+                  <div key={term + rIdx}>
                     <dt>{term}</dt>
                     <dd>{detail}</dd>
                   </div>
@@ -331,9 +376,10 @@ export default function Portfolio() {
           </aside>
         ) : null,
       ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [PANELS],
   )
+
+  const activeSide = PANELS[active]?.side || 'center'
 
   return (
     <main
@@ -341,10 +387,18 @@ export default function Portfolio() {
       className={`shell${ready ? ' is-ready' : ''}`}
       style={{ '--panels': PANELS.length }}
     >
+      {/* Contact Form Modal */}
+      <ContactModal
+        isOpen={contactModalOpen}
+        onClose={() => setContactModalOpen(false)}
+      />
+
       {/* Covers the page while 129 frames decode, then wipes up off it. */}
       <div className="curtain" ref={curtain}>
-        <p className="curtain__mark">Kashvi Jain</p>
-        <p className="curtain__role">Web developer — Kathmandu</p>
+        <p className="curtain__mark">{profile.name || 'Kashvi Jain'}</p>
+        <p className="curtain__role">
+          {profile.role || 'Web developer'} — {profile.city?.split(', ').pop() || 'Kathmandu'}
+        </p>
         <p className="curtain__bar">
           <i />
         </p>
@@ -352,8 +406,7 @@ export default function Portfolio() {
 
       <div className="cursor" aria-hidden="true" />
 
-      {/* One snap point per section, so a wheel gesture settles on a panel
-          instead of leaving the copy stranded halfway through a handoff. */}
+      {/* One snap point per section */}
       <div className="snaps" aria-hidden="true">
         {PANELS.map((p) => (
           <div key={p.id} />
@@ -365,15 +418,16 @@ export default function Portfolio() {
         <CharacterCanvas
           onReady={onReady}
           onProgress={onProgress}
-          side={PANELS[active].side}
+          side={activeSide}
         />
+        <div className="wash" />
         <div className="scrim" />
         <div className="grain" />
 
         <div className="frame">
           <nav className="top">
             <a className="wordmark" href="#intro" onClick={goTo(0)}>
-              Kashvi<span>®</span>
+              {profile.name?.split(' ')[0] || 'Kashvi'}<span>®</span>
             </a>
             <ul ref={navList}>
               <i className="marker" aria-hidden="true" />
@@ -391,7 +445,7 @@ export default function Portfolio() {
             </ul>
           </nav>
 
-          <div className={`columns is-${PANELS[active].side}`}>
+          <div className={`columns is-${activeSide}`}>
             <div className="panels">{panels}</div>
             <div className="lane" aria-hidden="true" />
             <div className="asides">{asides}</div>
@@ -399,10 +453,27 @@ export default function Portfolio() {
 
           <footer className="bottom">
             <p className="status">
-              <i /> Open to internships &amp; freelance
+              <i /> {profile.status}
             </p>
-           
-            <p className="place">kashvijain2910@gmail.com</p>
+            <p className={`hint${active === 0 ? '' : ' is-gone'}`}>
+              Move your cursor — she follows
+            </p>
+            <p className="place">
+              <Link
+                to="/admin"
+                style={{
+                  color: 'inherit',
+                  textDecoration: 'none',
+                  opacity: 0.6,
+                  transition: 'opacity 0.2s',
+                  marginRight: '12px',
+                }}
+                title="Admin Control Center"
+              >
+                ⚙️
+              </Link>
+              {profile.coords}
+            </p>
           </footer>
 
           <div className="progress" aria-hidden="true">

@@ -5,6 +5,10 @@
   --ink: #fbf1e6;
   --ink-soft: rgba(251, 241, 230, 0.62);
   --ink-faint: rgba(251, 241, 230, 0.4);
+  /* Both animated per section by tintTo(). The red wall is photographed into
+     the frames, so the section's colour lands on the scrim over the flanks and
+     on the accents rather than replacing the backdrop behind her. */
+  --tint-rgb: 58 10 6;
   --gold: #e9c393;
   --edge: rgba(251, 241, 230, 0.16);
   --gutter: clamp(20px, 3.6vw, 60px);
@@ -31,7 +35,7 @@ html {
 
 html,
 body {
-  background: var(--backdrop);
+  background: rgb(var(--tint-rgb));
   color: var(--ink);
   font-family: var(--font);
   font-weight: 300;
@@ -96,15 +100,27 @@ a {
   background:
     linear-gradient(
       90deg,
-      rgba(46, 8, 5, 0.84) 0%,
-      rgba(46, 8, 5, 0.38) 22%,
-      rgba(46, 8, 5, 0) 40%,
-      rgba(46, 8, 5, 0) 60%,
-      rgba(46, 8, 5, 0.38) 78%,
-      rgba(46, 8, 5, 0.84) 100%
+      rgb(var(--tint-rgb) / 0.92) 0%,
+      rgb(var(--tint-rgb) / 0.5) 22%,
+      rgb(var(--tint-rgb) / 0) 42%,
+      rgb(var(--tint-rgb) / 0) 58%,
+      rgb(var(--tint-rgb) / 0.5) 78%,
+      rgb(var(--tint-rgb) / 0.92) 100%
     ),
-    linear-gradient(to top, rgba(38, 6, 4, 0.55) 0%, rgba(38, 6, 4, 0) 30%),
-    linear-gradient(to bottom, rgba(38, 6, 4, 0.42) 0%, rgba(38, 6, 4, 0) 22%);
+    linear-gradient(to top, rgb(var(--tint-rgb) / 0.62) 0%, rgb(var(--tint-rgb) / 0) 32%),
+    linear-gradient(to bottom, rgb(var(--tint-rgb) / 0.5) 0%, rgb(var(--tint-rgb) / 0) 24%);
+}
+
+/* A light wash so the wall she stands against drifts toward the section colour
+   too, instead of staying stubbornly red inside a page that has moved on. */
+.wash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: rgb(var(--tint-rgb));
+  mix-blend-mode: color;
+  opacity: 0.32;
 }
 
 /* The noise tiles, so this only ever needs to be the size of the stage;
@@ -426,6 +442,71 @@ a {
 .entries li {
   padding: clamp(11px, 1.8vh, 18px) 0;
   border-bottom: 1px solid var(--edge);
+}
+
+.entries--links li {
+  padding: 0;
+}
+
+.entries--links a {
+  position: relative;
+  display: block;
+  padding: clamp(11px, 1.8vh, 18px) 0;
+  transition: padding 0.4s var(--ease);
+}
+
+.entries--links a:hover {
+  padding-left: 14px;
+}
+
+.columns.is-left .entries--links a:hover {
+  padding-left: 0;
+  padding-right: 14px;
+}
+
+.entries--links a:hover h3 {
+  color: var(--gold);
+}
+
+.entries__go {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  margin-top: -9px;
+  width: 18px;
+  height: 18px;
+  opacity: 0;
+  transition: opacity 0.35s, transform 0.4s var(--ease);
+  transform: translateX(-8px);
+}
+
+.columns.is-left .entries__go {
+  right: auto;
+  left: 0;
+  transform: translateX(8px) scaleX(-1);
+}
+
+.entries--links a:hover .entries__go {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.columns.is-left .entries--links a:hover .entries__go {
+  transform: translateX(0) scaleX(-1);
+}
+
+.entries__go svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.entries h3 {
+  transition: color 0.35s;
 }
 
 .entries h3 {
@@ -813,5 +894,164 @@ a {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* =========================================================== detail pages */
+
+.detail {
+  position: relative;
+  min-height: 100svh;
+  background: rgb(var(--tint-rgb));
+  padding: clamp(24px, 4vw, 56px) var(--gutter) clamp(48px, 8vh, 110px);
+  overflow-x: hidden;
+}
+
+.detail .grain {
+  position: fixed;
+}
+
+.detail__inner {
+  position: relative;
+  z-index: 2;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.detail__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: clamp(14px, 2vw, 22px);
+  border-bottom: 1px solid var(--edge);
+}
+
+.detail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  transition: color 0.35s, gap 0.35s var(--ease);
+}
+
+.detail__back:hover {
+  color: var(--ink);
+  gap: 16px;
+}
+
+.detail__back svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.detail__head {
+  padding: clamp(40px, 9vh, 96px) 0 clamp(30px, 6vh, 64px);
+}
+
+/* `ch` resolves against the element's own font size, so this has to live on
+   the headline itself -- on the wrapper it measured 24 characters of body
+   copy and broke a 104px title one letter per line. */
+.detail .head {
+  max-width: 14ch;
+  font-size: clamp(38px, 7vw, 96px);
+  margin-bottom: 0;
+}
+
+.detail .lede {
+  max-width: 46ch;
+  font-size: clamp(15px, 1.35vw, 21px);
+  margin-top: clamp(18px, 3vh, 30px);
+}
+
+.detail__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: clamp(28px, 6vw, 90px);
+  padding-top: clamp(28px, 5vh, 56px);
+  border-top: 1px solid var(--edge);
+}
+
+.detail__prose p {
+  font-size: clamp(14px, 1.1vw, 17px);
+  line-height: 1.78;
+  color: var(--ink-soft);
+  margin-bottom: 1.3em;
+  max-width: 62ch;
+}
+
+.detail__meta .label + .tags {
+  margin: 14px 0 34px;
+  max-width: none;
+}
+
+.detail__meta dl {
+  margin: 14px 0 0;
+  border-top: 1px solid var(--edge);
+}
+
+.detail__meta dl div {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--edge);
+}
+
+.detail__meta dt {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 5px;
+}
+
+.detail__meta dd {
+  margin: 0;
+  font-size: clamp(12px, 0.95vw, 15px);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.detail__shot {
+  margin: clamp(40px, 8vh, 90px) 0 0;
+}
+
+.detail__shot img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
+
+.detail__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: clamp(46px, 9vh, 100px);
+  padding-top: clamp(22px, 4vh, 40px);
+  border-top: 1px solid var(--edge);
+}
+
+.detail--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 24px;
+}
+
+@media (max-width: 860px) {
+  .detail__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail__head {
+    max-width: none;
   }
 }

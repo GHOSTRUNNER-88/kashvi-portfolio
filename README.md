@@ -7,11 +7,29 @@ she looks straight at you.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm test         # the tracking math
-npm run frames   # re-bake the flipbook from the mp4 (needs python + opencv)
-npm run build
+npm run dev:all    # starts both Backend API (5000) & Vite Frontend (5173)
+npm run server     # starts Backend API only (http://localhost:5000)
+npm run dev        # starts Vite frontend only (http://localhost:5173)
+npm test           # tracking math & unit tests
+npm run frames     # re-bake flipbook from mp4 (python + opencv)
+npm run build      # production build
 ```
+
+## Admin Management Console (`/admin`)
+
+Access the full portfolio admin dashboard at `http://localhost:5173/admin`:
+- **Default Username**: `admin`
+- **Default Password**: `admin123`
+
+Features in Admin:
+- **Profile & Bio**: Live update name, title, contact coords, lede, about statements, and at-a-glance rows.
+- **Projects**: Full CRUD with auto slug generator, tech stack tag chips, cover uploader, body paragraphs, highlights, and links.
+- **Experience**: Edit practice history, highlights, and timelines.
+- **Education**: Add and reorder academic degrees and institutions.
+- **Toolkit & Skills**: Reorder, add and remove skill chips.
+- **Messages Inbox**: View visitor inquiries, filter unread, reply directly via email, and manage contacts.
+- **Settings & Backup**: Change credentials, download complete JSON backup, restore data, or reset to defaults.
+
 
 ## Structure
 
